@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { Plus, Search, Filter, MoreVertical, Package, AlertTriangle, QrCode, Download, Upload, Moon, Sun, Shield, LogOut, Building2, X, Eye } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
-import Image from 'next/image'
 
 interface InventoryItem {
   id: string
@@ -235,22 +234,13 @@ export default function DashboardPage() {
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Image
-                src="/logo.png"
-                alt="GearBin Logo"
-                width={40}
-                height={40}
-                className="w-10 h-10 object-contain"
-              />
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  GearBin
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {session.user.company?.name}
-                </p>
-              </div>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <span className="text-red-500">Gear</span><span className="text-green-500">Bin</span>
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {session.user.company?.name}
+              </p>
             </div>
             
             <div className="flex items-center space-x-2">
