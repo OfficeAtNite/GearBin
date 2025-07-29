@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Eye, EyeOff, Loader2, Plus, Users } from 'lucide-react'
 
 export default function SignUpPage() {
@@ -96,6 +97,15 @@ export default function SignUpPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/logo.png"
+              alt="GearBin Logo"
+              width={80}
+              height={80}
+              className="w-20 h-20 object-contain"
+            />
+          </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
             Create your account
           </h2>

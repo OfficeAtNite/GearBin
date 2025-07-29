@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Filter, MoreVertical, Package, AlertTriangle, QrCode, Download, Upload, Moon, Sun, Shield, LogOut, Building2, X } from 'lucide-react'
+import { Plus, Search, Filter, MoreVertical, Package, AlertTriangle, QrCode, Download, Upload, Moon, Sun, Shield, LogOut, Building2, X, Eye } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface InventoryItem {
   id: string
@@ -234,13 +235,22 @@ export default function DashboardPage() {
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                GearBin
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {session.user.company?.name}
-              </p>
+            <div className="flex items-center space-x-3">
+              <Image
+                src="/logo.png"
+                alt="GearBin Logo"
+                width={40}
+                height={40}
+                className="w-10 h-10 object-contain"
+              />
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  GearBin
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {session.user.company?.name}
+                </p>
+              </div>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -404,31 +414,45 @@ export default function DashboardPage() {
               >
                 <div className="flex items-center space-x-3">
                   {/* Item Image/Icon */}
-                  <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
-                    ) : (
-                      <Package className="h-6 w-6 text-gray-400" />
-                    )}
-                  </div>
+                  <Link href={`/inventory/${item.id}`} className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <Package className="h-6 w-6 text-gray-400" />
+                      )}
+                    </div>
+                  </Link>
 
                   {/* Item Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-gray-900 dark:text-white truncate">
-                        {item.name}
-                      </h3>
-                      {item.quantity <= item.lowStockThreshold && (
-                        <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                      )}
+                      <Link href={`/inventory/${item.id}`} className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 dark:text-white truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">
+                          {item.name}
+                        </h3>
+                      </Link>
+                      <div className="flex items-center space-x-2 ml-2">
+                        {item.quantity <= item.lowStockThreshold && (
+                          <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                        )}
+                        <Link href={`/inventory/${item.id}`}>
+                          <button className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </Link>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         Stock: {item.quantity}
                       </p>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 ml-3">
                         <button
-                          onClick={() => updateQuantity(item.id, -1)}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            updateQuantity(item.id, -1)
+                          }}
                           disabled={item.quantity <= 0}
                           className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white flex items-center justify-center text-sm font-semibold"
                         >
@@ -438,7 +462,10 @@ export default function DashboardPage() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.id, 1)}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            updateQuantity(item.id, 1)
+                          }}
                           className="w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center text-sm font-semibold"
                         >
                           +

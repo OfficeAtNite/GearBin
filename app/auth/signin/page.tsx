@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export default function SignInPage() {
@@ -48,6 +49,15 @@ export default function SignInPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/logo.png"
+              alt="GearBin Logo"
+              width={80}
+              height={80}
+              className="w-20 h-20 object-contain"
+            />
+          </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
             Sign in to GearBin
           </h2>
