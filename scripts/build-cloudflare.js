@@ -33,6 +33,33 @@ try {
 
   fs.writeFileSync(path.join('.next', '_headers'), headersContent.trim());
 
+  // Remove cache files that exceed Cloudflare's 25MB limit
+  console.log('🧹 Cleaning up cache files...');
+  const cachePath = path.join('.next', 'cache');
+  if (fs.existsSync(cachePath)) {
+    fs.rmSync(cachePath, { recursive: true, force: true });
+    console.log('✓ Removed cache directory');
+  }
+
+  // Remove other large files that aren't needed for static hosting
+  const staticPath = path.join('.next', 'static');
+  if (fs.existsSync(staticPath)) {
+    const checkDir = (dirPath) => {
+      const items = fs.readdirSync(dirPath);
+      items.forEach(item => {
+        const itemPath = path.join(dirPath, item);
+        const stats = fs.statSync(itemPath);
+        if (stats.isDirectory()) {
+          checkDir(itemPath);
+        } else if (stats.size > 20 * 1024 * 1024) { // Remove files larger than 20MB
+          fs.unlinkSync(itemPath);
+          console.log(`✓ Removed large file: ${path.relative('.next', itemPath)}`);
+        }
+      });
+    };
+    checkDir(staticPath);
+  }
+
   console.log('✅ Build completed successfully!');
   console.log('📁 Output directory: .next');
   
