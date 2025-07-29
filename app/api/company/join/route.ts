@@ -5,7 +5,6 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 // Force dynamic rendering for this API route
-export const dynamic = 'force-dynamic'
 
 const joinCompanySchema = z.object({
   joinCode: z.string().min(8, 'Invalid join code').max(8, 'Invalid join code'),
