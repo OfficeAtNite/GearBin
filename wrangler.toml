@@ -1,0 +1,10 @@
+name = "gearbin"
+compatibility_date = "2024-01-15"
+pages_build_output_dir = ".next"
+
+[env.production]
+vars = { NODE_ENV = "production" }
+
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "gearbin_sessions"

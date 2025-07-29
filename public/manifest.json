@@ -1,0 +1,21 @@
+{
+  "name": "GearBin - Inventory Management",
+  "short_name": "GearBin",
+  "description": "Mobile-first inventory management for garage door installers",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

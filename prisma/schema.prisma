@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Company {
+  id               String      @id @default(cuid())
+  name             String
+  joinCode         String      @unique
+  organizationType String      @default("PARENT") // PARENT, SUBSIDIARY, BRANCH, LOCATION, DIVISION
+  parentCompanyId  String?
+  location         String?
+  description      String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  
+  // Relationships
+  users            User[]
+  items            InventoryItem[]
+  auditLogs        AuditLog[]
+  
+  // Organizational hierarchy
+  parentCompany    Company?    @relation("CompanyHierarchy", fields: [parentCompanyId], references: [id])
+  childCompanies   Company[]   @relation("CompanyHierarchy")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("USER")
+  companyId     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company       Company?    @relation(fields: [companyId], references: [id])
+  accounts      Account[]
+  sessions      Session[]
+  auditLogs     AuditLog[]
+}
+
+model InventoryItem {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  quantity        Int      @default(0)
+  lowStockThreshold Int    @default(10)
+  image           String?
+  notes           String?
+  companyId       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company         Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tags            ItemTag[]
+  auditLogs       AuditLog[]
+  
+  @@index([companyId])
+  @@index([name])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#3b82f6")
+  createdAt DateTime @default(now())
+
+  items     ItemTag[]
+}
+
+model ItemTag {
+  id     String @id @default(cuid())
+  itemId String
+  tagId  String
+
+  item   InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tag    Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, tagId])
+}
+
+model AuditLog {
+  id            String       @id @default(cuid())
+  action        String
+  itemId        String?
+  itemName      String
+  quantityChange Int?
+  previousQuantity Int?
+  newQuantity   Int?
+  note          String?
+  userId        String
+  companyId     String
+  createdAt     DateTime     @default(now())
+
+  user          User           @relation(fields: [userId], references: [id])
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  item          InventoryItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([itemId])
+  @@index([createdAt])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Note: SQLite doesn't support enums, so we use strings
+// UserRole: "ADMIN" | "USER"
+// AuditAction: "CREATE_ITEM" | "UPDATE_QUANTITY" | "UPDATE_ITEM" | "DELETE_ITEM" | "CSV_IMPORT" | "CSV_EXPORT"
