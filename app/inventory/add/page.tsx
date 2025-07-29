@@ -14,11 +14,24 @@ interface Tag {
 
 export default function AddInventoryPage() {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
 
   useEffect(() => {
     fetchTags()
   }, [])
+
+  useEffect(() => {
+    // Only redirect after session is loaded and we're on the client
+    if (status === 'loading') return // Still loading
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin')
+      return
+    }
+    if (session && !session?.user?.companyId) {
+      router.push('/onboarding')
+      return
+    }
+  }, [session, status, router])
 
   const fetchTags = async () => {
     try {
@@ -139,8 +152,20 @@ export default function AddInventoryPage() {
     }
   }
 
-  if (!session?.user?.companyId) {
-    router.push('/onboarding')
+  // Show loading while session is being determined
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render anything if redirecting
+  if (status === 'unauthenticated' || !session?.user?.companyId) {
     return null
   }
 

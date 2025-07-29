@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic'
+
 const updateQuantitySchema = z.object({
   itemId: z.string().min(1, 'Item ID is required'),
   change: z.number().int('Change must be an integer'),
