@@ -177,7 +177,9 @@ export default function DashboardPage() {
 
         if (response.ok) {
           // Refresh the session to get updated company info
-          window.location.reload()
+          if (typeof window !== 'undefined') {
+            window.location.reload()
+          }
         } else {
           const error = await response.json()
           alert(error.message || 'Failed to switch company')
@@ -207,7 +209,9 @@ export default function DashboardPage() {
           })
 
           if (switchResponse.ok) {
-            window.location.reload()
+            if (typeof window !== 'undefined') {
+              window.location.reload()
+            }
           }
         } else {
           const error = await response.json()
