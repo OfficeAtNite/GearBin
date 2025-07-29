@@ -7,11 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "export": "next export",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "build:cloudflare": "node scripts/build-cloudflare.js",
     "preview": "npm run build && npm run start"
   },
   "dependencies": {

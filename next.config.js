@@ -11,9 +11,6 @@ const nextConfig = {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-development',
   },
-  // Enable static export for Cloudflare Pages
-  output: 'export',
-  trailingSlash: true,
   // For Cloudflare Pages compatibility
   webpack: (config, { isServer }) => {
     if (isServer) {
