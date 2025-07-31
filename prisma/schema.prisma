@@ -50,6 +50,7 @@ model Company {
   
   // Relationships
   users            User[]
+  userAccess       UserCompanyAccess[]
   items            InventoryItem[]
   categories       Category[]
   auditLogs        AuditLog[]
@@ -57,6 +58,22 @@ model Company {
   // Organizational hierarchy
   parentCompany    Company?    @relation("CompanyHierarchy", fields: [parentCompanyId], references: [id])
   childCompanies   Company[]   @relation("CompanyHierarchy")
+}
+
+model UserCompanyAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  role      String   @default("USER") // ADMIN, USER
+  grantedAt DateTime @default(now())
+  grantedBy String?  // User ID who granted access
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
 }
 
 model User {
@@ -71,10 +88,11 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  company       Company?    @relation(fields: [companyId], references: [id])
-  accounts      Account[]
-  sessions      Session[]
-  auditLogs     AuditLog[]
+  company         Company?            @relation(fields: [companyId], references: [id])
+  companyAccess   UserCompanyAccess[]
+  accounts        Account[]
+  sessions        Session[]
+  auditLogs       AuditLog[]
 }
 
 model InventoryItem {
