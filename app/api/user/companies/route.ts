@@ -11,12 +11,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get all companies the user has been part of
-    // This includes their current company and any previous companies they've joined
-    const userCompanyHistory = await prisma.auditLog.findMany({
+    // Get ALL companies the user has ever been associated with
+    // Method 1: Get companies from audit logs (switches, joins, creates)
+    const auditCompanies = await prisma.auditLog.findMany({
       where: {
         userId: session.user.id,
-        action: 'COMPANY_SWITCH'
+        action: {
+          in: ['COMPANY_SWITCH', 'COMPANY_JOIN', 'COMPANY_CREATE']
+        }
       },
       select: {
         companyId: true
@@ -24,9 +26,21 @@ export async function GET(request: NextRequest) {
       distinct: ['companyId']
     })
 
-    // Get the company IDs from audit logs plus current company
+    // Method 2: Get companies where user has any audit history (comprehensive approach)
+    const allUserAudits = await prisma.auditLog.findMany({
+      where: {
+        userId: session.user.id
+      },
+      select: {
+        companyId: true
+      },
+      distinct: ['companyId']
+    })
+
+    // Combine all possible company IDs
     const companyIds = [
-      ...userCompanyHistory.map(log => log.companyId),
+      ...auditCompanies.map(log => log.companyId),
+      ...allUserAudits.map(log => log.companyId),
       session.user.companyId
     ].filter(Boolean) as string[]
 
