@@ -3,13 +3,23 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { ArrowLeft, Edit3, Save, X, Tag, Plus, Trash2, Clock, User } from 'lucide-react'
+import { ArrowLeft, Edit3, Save, X, Tag, Plus, Trash2, Clock, User, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface Tag {
   id: string
   name: string
   color: string
+}
+
+interface ItemImage {
+  id: string
+  imageUrl: string
+  fileName?: string
+  fileSize?: number
+  mimeType?: string
+  isPrimary: boolean
+  createdAt: string
 }
 
 interface AuditLog {
@@ -38,6 +48,7 @@ interface InventoryItem {
   createdAt: string
   updatedAt: string
   tags: Tag[]
+  images?: ItemImage[]
 }
 
 export default function InventoryItemDetailPage({ params }: { params: { id: string } }) {
@@ -51,14 +62,47 @@ export default function InventoryItemDetailPage({ params }: { params: { id: stri
   const [error, setError] = useState('')
   const [availableTags, setAvailableTags] = useState<Tag[]>([])
   const [editedItem, setEditedItem] = useState<Partial<InventoryItem>>({})
+  const [images, setImages] = useState<ItemImage[]>([])
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [expandedImageIndex, setExpandedImageIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (params.id) {
       fetchItem()
       fetchAuditLogs()
       fetchTags()
+      fetchImages()
     }
   }, [params.id])
+
+  // Keyboard navigation for image modal
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (expandedImageIndex === null) return
+
+      switch (event.key) {
+        case 'Escape':
+          handleCloseModal()
+          break
+        case 'ArrowLeft':
+          handlePrevImage()
+          break
+        case 'ArrowRight':
+          handleNextImage()
+          break
+      }
+    }
+
+    if (expandedImageIndex !== null) {
+      document.addEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = 'unset'
+    }
+  }, [expandedImageIndex])
 
   const fetchItem = async () => {
     try {
@@ -74,6 +118,80 @@ export default function InventoryItemDetailPage({ params }: { params: { id: stri
       setError('Failed to load item')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchImages = async () => {
+    try {
+      const response = await fetch(`/api/inventory/${params.id}/images`)
+      if (response.ok) {
+        const data = await response.json()
+        setImages(data.images)
+      }
+    } catch (error) {
+      console.error('Failed to fetch images:', error)
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingImage(true)
+    try {
+      // Create a data URL for the image
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        const imageUrl = event.target?.result as string
+        
+        // Upload to the images API
+        const response = await fetch(`/api/inventory/${params.id}/images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            imageUrl,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            isPrimary: images.length === 0, // Make first image primary
+          }),
+        })
+
+        if (response.ok) {
+          // Refresh images list
+          fetchImages()
+        } else {
+          setError('Failed to upload image')
+        }
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      setError('Failed to upload image')
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
+  const handleDeleteImage = async (imageId: string) => {
+    if (!confirm('Are you sure you want to delete this image?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/inventory/${params.id}/images?imageId=${imageId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        // Refresh images list
+        fetchImages()
+      } else {
+        setError('Failed to delete image')
+      }
+    } catch (error) {
+      setError('Failed to delete image')
     }
   }
 
@@ -182,6 +300,47 @@ export default function InventoryItemDetailPage({ params }: { params: { id: stri
     }
   }
 
+  // Get all images including legacy image for modal navigation
+  const getAllImages = () => {
+    const allImages = []
+    
+    // Add legacy image if it exists and isn't already in images
+    if (item?.image && !images.some(img => img.imageUrl === item.image)) {
+      allImages.push({
+        id: 'legacy',
+        imageUrl: item.image,
+        isPrimary: false,
+        isLegacy: true
+      })
+    }
+    
+    // Add all other images
+    allImages.push(...images.map(img => ({ ...img, isLegacy: false })))
+    
+    return allImages
+  }
+
+  const handleImageClick = (imageIndex: number) => {
+    setExpandedImageIndex(imageIndex)
+  }
+
+  const handleNextImage = () => {
+    const allImages = getAllImages()
+    if (expandedImageIndex !== null && expandedImageIndex < allImages.length - 1) {
+      setExpandedImageIndex(expandedImageIndex + 1)
+    }
+  }
+
+  const handlePrevImage = () => {
+    if (expandedImageIndex !== null && expandedImageIndex > 0) {
+      setExpandedImageIndex(expandedImageIndex - 1)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setExpandedImageIndex(null)
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -261,16 +420,88 @@ export default function InventoryItemDetailPage({ params }: { params: { id: stri
       <div className="p-4 max-w-4xl mx-auto">
         {/* Item Details */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          {/* Image */}
-          {item.image && (
-            <div className="mb-6">
-              <img
-                src={item.image}
-                alt={item.name}
-                className="w-full max-w-md mx-auto rounded-lg shadow-md"
-              />
+          {/* Images Gallery */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Images</h3>
+              {isEditing && (
+                <label className="btn-secondary cursor-pointer text-sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={isUploadingImage}
+                  />
+                </label>
+              )}
             </div>
-          )}
+            
+            {images.length > 0 || item.image ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {/* Legacy single image support */}
+                {item.image && !images.some(img => img.imageUrl === item.image) && (
+                  <div className="relative group cursor-pointer" onClick={() => handleImageClick(0)}>
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-32 object-cover rounded-lg shadow-md hover:shadow-lg transition-shadow"
+                    />
+                    <div className="absolute top-2 left-2">
+                      <span className="px-2 py-1 text-xs bg-blue-500 text-white rounded">Legacy</span>
+                    </div>
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center">
+                      <Maximize2 className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Multiple images */}
+                {images.map((image, index) => {
+                  const imageIndex = item.image && !images.some(img => img.imageUrl === item.image) ? index + 1 : index
+                  return (
+                    <div key={image.id} className="relative group cursor-pointer" onClick={() => handleImageClick(imageIndex)}>
+                      <img
+                        src={image.imageUrl}
+                        alt={`${item.name} - Image ${image.id}`}
+                        className="w-full h-32 object-cover rounded-lg shadow-md hover:shadow-lg transition-shadow"
+                      />
+                      {image.isPrimary && (
+                        <div className="absolute top-2 left-2">
+                          <span className="px-2 py-1 text-xs bg-green-500 text-white rounded">Primary</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center">
+                        <Maximize2 className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      {isEditing && (
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteImage(image.id)
+                            }}
+                            className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>No images uploaded</p>
+                {isEditing && (
+                  <p className="text-sm mt-1">Click "Add Image" to upload photos</p>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Item Name */}
           <div className="mb-4">
@@ -481,6 +712,71 @@ export default function InventoryItemDetailPage({ params }: { params: { id: stri
           )}
         </div>
       </div>
+
+      {/* Image Expansion Modal */}
+      {expandedImageIndex !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+          <div className="relative max-w-4xl max-h-full w-full h-full flex items-center justify-center p-4">
+            {/* Close Button */}
+            <button
+              onClick={handleCloseModal}
+              className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+            >
+              <X className="h-8 w-8" />
+            </button>
+
+            {/* Navigation Buttons */}
+            {getAllImages().length > 1 && (
+              <>
+                {expandedImageIndex > 0 && (
+                  <button
+                    onClick={handlePrevImage}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 z-10"
+                  >
+                    <ChevronLeft className="h-10 w-10" />
+                  </button>
+                )}
+                {expandedImageIndex < getAllImages().length - 1 && (
+                  <button
+                    onClick={handleNextImage}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 z-10"
+                  >
+                    <ChevronRight className="h-10 w-10" />
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Image */}
+            <div className="relative max-w-full max-h-full">
+              <img
+                src={getAllImages()[expandedImageIndex]?.imageUrl}
+                alt={`${item?.name} - Expanded view`}
+                className="max-w-full max-h-full object-contain"
+              />
+              
+              {/* Image Info */}
+              <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-3 py-2 rounded-lg">
+                <p className="text-sm">
+                  {expandedImageIndex + 1} of {getAllImages().length}
+                </p>
+                {getAllImages()[expandedImageIndex]?.isPrimary && (
+                  <span className="text-xs bg-green-500 px-2 py-1 rounded ml-2">Primary</span>
+                )}
+                {getAllImages()[expandedImageIndex]?.isLegacy && (
+                  <span className="text-xs bg-blue-500 px-2 py-1 rounded ml-2">Legacy</span>
+                )}
+              </div>
+            </div>
+
+            {/* Keyboard Navigation Hint */}
+            <div className="absolute bottom-4 right-4 text-white text-xs bg-black bg-opacity-50 px-3 py-2 rounded-lg">
+              <p>Use arrow keys or click to navigate</p>
+              <p>Press ESC to close</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

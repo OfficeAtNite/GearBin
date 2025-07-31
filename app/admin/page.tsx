@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, Copy, Check, Users, Shield, Trash2, Mail, UserPlus, Building, GitBranch, MapPin, Briefcase, Home } from 'lucide-react'
+import { ArrowLeft, Plus, Copy, Check, Users, Shield, Trash2, Mail, UserPlus, Building, GitBranch, MapPin, Briefcase, Home, Tag, Edit2, Palette } from 'lucide-react'
 import Link from 'next/link'
 
 interface CompanyUser {
@@ -27,6 +27,16 @@ interface Company {
   parentCompany?: Company
 }
 
+interface Category {
+  id: string
+  name: string
+  description?: string
+  color?: string
+  _count: {
+    items: number
+  }
+}
+
 interface OrganizationTree {
   organizationTree: Company
   currentCompanyId: string
@@ -43,6 +53,23 @@ export default function AdminPage() {
   const [isInviting, setIsInviting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showOrgTree, setShowOrgTree] = useState(false)
+  const [showCreateChild, setShowCreateChild] = useState(false)
+  const [isCreatingChild, setIsCreatingChild] = useState(false)
+  const [childOrgForm, setChildOrgForm] = useState({
+    name: '',
+    organizationType: 'BRANCH' as const,
+    location: '',
+    description: ''
+  })
+  const [categories, setCategories] = useState<Category[]>([])
+  const [showCreateCategory, setShowCreateCategory] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    description: '',
+    color: '#3B82F6'
+  })
 
   useEffect(() => {
     if (!session?.user?.companyId) {
@@ -57,6 +84,7 @@ export default function AdminPage() {
 
     fetchCompanyData()
     fetchOrganizationTree()
+    fetchCategories()
   }, [session, router])
 
   const fetchOrganizationTree = async () => {
@@ -182,6 +210,183 @@ export default function AdminPage() {
       console.error('Failed to remove user:', error)
       alert('Failed to remove user')
     }
+  }
+
+  const createChildOrganization = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!childOrgForm.name.trim()) return
+
+    setIsCreatingChild(true)
+    try {
+      const response = await fetch('/api/admin/child-company', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: childOrgForm.name.trim(),
+          organizationType: childOrgForm.organizationType,
+          location: childOrgForm.location.trim() || undefined,
+          description: childOrgForm.description.trim() || undefined,
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        alert(`Child organization "${result.company.name}" created successfully!\nJoin Code: ${result.company.joinCode}`)
+        setChildOrgForm({
+          name: '',
+          organizationType: 'BRANCH',
+          location: '',
+          description: ''
+        })
+        setShowCreateChild(false)
+        // Refresh organization tree
+        fetchOrganizationTree()
+      } else {
+        const error = await response.json()
+        alert(`Failed to create child organization: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Failed to create child organization:', error)
+      alert('Failed to create child organization')
+    } finally {
+      setIsCreatingChild(false)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories')
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories)
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+    }
+  }
+
+  const createCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!categoryForm.name.trim()) return
+
+    setIsCreatingCategory(true)
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: categoryForm.name.trim(),
+          description: categoryForm.description.trim() || undefined,
+          color: categoryForm.color,
+        }),
+      })
+
+      if (response.ok) {
+        alert('Category created successfully!')
+        setCategoryForm({
+          name: '',
+          description: '',
+          color: '#3B82F6'
+        })
+        setShowCreateCategory(false)
+        fetchCategories()
+      } else {
+        const error = await response.json()
+        alert(`Failed to create category: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Failed to create category:', error)
+      alert('Failed to create category')
+    } finally {
+      setIsCreatingCategory(false)
+    }
+  }
+
+  const updateCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingCategory || !categoryForm.name.trim()) return
+
+    setIsCreatingCategory(true)
+    try {
+      const response = await fetch(`/api/categories/${editingCategory.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: categoryForm.name.trim(),
+          description: categoryForm.description.trim() || undefined,
+          color: categoryForm.color,
+        }),
+      })
+
+      if (response.ok) {
+        alert('Category updated successfully!')
+        setCategoryForm({
+          name: '',
+          description: '',
+          color: '#3B82F6'
+        })
+        setEditingCategory(null)
+        setShowCreateCategory(false)
+        fetchCategories()
+      } else {
+        const error = await response.json()
+        alert(`Failed to update category: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Failed to update category:', error)
+      alert('Failed to update category')
+    } finally {
+      setIsCreatingCategory(false)
+    }
+  }
+
+  const deleteCategory = async (categoryId: string) => {
+    if (!confirm('Are you sure you want to delete this category? Items in this category will be uncategorized.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/categories/${categoryId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        alert('Category deleted successfully!')
+        fetchCategories()
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete category: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Failed to delete category:', error)
+      alert('Failed to delete category')
+    }
+  }
+
+  const startEditCategory = (category: Category) => {
+    setEditingCategory(category)
+    setCategoryForm({
+      name: category.name,
+      description: category.description || '',
+      color: category.color || '#3B82F6'
+    })
+    setShowCreateCategory(true)
+  }
+
+  const cancelCategoryForm = () => {
+    setShowCreateCategory(false)
+    setEditingCategory(null)
+    setCategoryForm({
+      name: '',
+      description: '',
+      color: '#3B82F6'
+    })
   }
 
   if (!session?.user?.companyId || session.user.role !== 'ADMIN') {
@@ -350,6 +555,289 @@ export default function AdminPage() {
                   <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-500 dark:text-gray-400">
                     No users found. Invite team members to get started.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Create Child Organization */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Create Child Organization
+                </h2>
+                <button
+                  onClick={() => setShowCreateChild(!showCreateChild)}
+                  className="btn-secondary text-sm"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {showCreateChild ? 'Cancel' : 'New Organization'}
+                </button>
+              </div>
+
+              {showCreateChild && (
+                <form onSubmit={createChildOrganization} className="space-y-4">
+                  <div>
+                    <label htmlFor="childOrgName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Organization Name *
+                    </label>
+                    <input
+                      id="childOrgName"
+                      type="text"
+                      required
+                      className="input-field"
+                      placeholder="Enter organization name"
+                      value={childOrgForm.name}
+                      onChange={(e) => setChildOrgForm(prev => ({ ...prev, name: e.target.value }))}
+                      disabled={isCreatingChild}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="childOrgType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Organization Type *
+                    </label>
+                    <select
+                      id="childOrgType"
+                      className="input-field"
+                      value={childOrgForm.organizationType}
+                      onChange={(e) => setChildOrgForm(prev => ({ ...prev, organizationType: e.target.value as any }))}
+                      disabled={isCreatingChild}
+                    >
+                      <option value="SUBSIDIARY">Subsidiary</option>
+                      <option value="BRANCH">Branch</option>
+                      <option value="LOCATION">Location</option>
+                      <option value="DIVISION">Division</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="childOrgLocation" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Location
+                    </label>
+                    <input
+                      id="childOrgLocation"
+                      type="text"
+                      className="input-field"
+                      placeholder="Enter location (optional)"
+                      value={childOrgForm.location}
+                      onChange={(e) => setChildOrgForm(prev => ({ ...prev, location: e.target.value }))}
+                      disabled={isCreatingChild}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="childOrgDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      id="childOrgDescription"
+                      rows={3}
+                      className="input-field"
+                      placeholder="Enter description (optional)"
+                      value={childOrgForm.description}
+                      onChange={(e) => setChildOrgForm(prev => ({ ...prev, description: e.target.value }))}
+                      disabled={isCreatingChild}
+                    />
+                  </div>
+
+                  <div className="flex space-x-3">
+                    <button
+                      type="submit"
+                      disabled={isCreatingChild || !childOrgForm.name.trim()}
+                      className="btn-primary flex-1"
+                    >
+                      {isCreatingChild ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Building className="h-4 w-4 mr-2" />
+                          Create Organization
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateChild(false)}
+                      className="btn-secondary"
+                      disabled={isCreatingChild}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <Building className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-blue-800 dark:text-blue-200 mb-1">
+                      Organization Types
+                    </p>
+                    <ul className="text-blue-700 dark:text-blue-300 space-y-1">
+                      <li><strong>Subsidiary:</strong> A separate legal entity owned by the parent</li>
+                      <li><strong>Branch:</strong> An extension of the parent company</li>
+                      <li><strong>Location:</strong> A physical location or office</li>
+                      <li><strong>Division:</strong> A functional division within the company</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Category Management */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Category Management
+                </h2>
+                <button
+                  onClick={() => setShowCreateCategory(!showCreateCategory)}
+                  className="btn-secondary text-sm"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {showCreateCategory ? 'Cancel' : 'New Category'}
+                </button>
+              </div>
+
+              {showCreateCategory && (
+                <form onSubmit={editingCategory ? updateCategory : createCategory} className="space-y-4 mb-6">
+                  <div>
+                    <label htmlFor="categoryName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Category Name *
+                    </label>
+                    <input
+                      id="categoryName"
+                      type="text"
+                      required
+                      className="input-field"
+                      placeholder="Enter category name"
+                      value={categoryForm.name}
+                      onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
+                      disabled={isCreatingCategory}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="categoryDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      id="categoryDescription"
+                      rows={2}
+                      className="input-field"
+                      placeholder="Enter category description (optional)"
+                      value={categoryForm.description}
+                      onChange={(e) => setCategoryForm(prev => ({ ...prev, description: e.target.value }))}
+                      disabled={isCreatingCategory}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="categoryColor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Color
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        id="categoryColor"
+                        type="color"
+                        className="w-10 h-10 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                        value={categoryForm.color}
+                        onChange={(e) => setCategoryForm(prev => ({ ...prev, color: e.target.value }))}
+                        disabled={isCreatingCategory}
+                      />
+                      <div
+                        className="px-3 py-2 rounded-lg text-white text-sm font-medium"
+                        style={{ backgroundColor: categoryForm.color }}
+                      >
+                        {categoryForm.name || 'Preview'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-3">
+                    <button
+                      type="submit"
+                      disabled={isCreatingCategory || !categoryForm.name.trim()}
+                      className="btn-primary"
+                    >
+                      {isCreatingCategory ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          {editingCategory ? 'Updating...' : 'Creating...'}
+                        </>
+                      ) : (
+                        <>
+                          <Tag className="h-4 w-4 mr-2" />
+                          {editingCategory ? 'Update Category' : 'Create Category'}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelCategoryForm}
+                      className="btn-secondary"
+                      disabled={isCreatingCategory}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {categories.length > 0 ? (
+                <div className="space-y-3">
+                  {categories.map((category) => (
+                    <div
+                      key={category.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: category.color || '#3B82F6' }}
+                        />
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {category.name}
+                          </p>
+                          {category.description && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {category.description}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            {category._count.items} item{category._count.items !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => startEditCategory(category)}
+                          className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteCategory(category.id)}
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Tag className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500 dark:text-gray-400">
+                    No categories created yet. Create categories to organize your inventory items.
                   </p>
                 </div>
               )}

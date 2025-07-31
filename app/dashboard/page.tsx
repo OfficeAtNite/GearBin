@@ -15,6 +15,19 @@ interface InventoryItem {
   image?: string
   notes?: string
   updatedAt: string
+  category?: {
+    id: string
+    name: string
+    color: string
+  }
+}
+
+interface Category {
+  id: string
+  name: string
+  description?: string
+  color: string
+  itemCount: number
 }
 
 export default function DashboardPage() {
@@ -25,6 +38,8 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [showLowStockOnly, setShowLowStockOnly] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [categories, setCategories] = useState<Category[]>([])
   const [showImportModal, setShowImportModal] = useState(false)
   const [importMode, setImportMode] = useState<'overwrite' | 'increment' | 'restore'>('overwrite')
   const [showMenu, setShowMenu] = useState(false)
@@ -40,6 +55,7 @@ export default function DashboardPage() {
       return
     }
     fetchItems()
+    fetchCategories()
   }, [session, router])
 
   // Close menu when clicking outside
@@ -67,6 +83,18 @@ export default function DashboardPage() {
     }
   }
 
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories')
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories)
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+    }
+  }
+
   const updateQuantity = async (itemId: string, change: number) => {
     try {
       const response = await fetch('/api/inventory/update-quantity', {
@@ -91,12 +119,13 @@ export default function DashboardPage() {
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase())
     const isLowStock = item.quantity <= item.lowStockThreshold
+    const matchesCategory = !selectedCategory || item.category?.id === selectedCategory
     
     if (showLowStockOnly) {
-      return matchesSearch && isLowStock
+      return matchesSearch && isLowStock && matchesCategory
     }
     
-    return matchesSearch
+    return matchesSearch && matchesCategory
   })
 
   const handleExport = async () => {
@@ -365,7 +394,22 @@ export default function DashboardPage() {
           />
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-wrap gap-2">
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border-0 focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">All Categories</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name} ({category.itemCount})
+              </option>
+            ))}
+          </select>
+
+          {/* Low Stock Filter */}
           <button
             onClick={() => setShowLowStockOnly(!showLowStockOnly)}
             className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -377,6 +421,20 @@ export default function DashboardPage() {
             <Filter className="h-3 w-3 mr-1" />
             Low Stock Only
           </button>
+
+          {/* Clear Filters */}
+          {(selectedCategory || showLowStockOnly) && (
+            <button
+              onClick={() => {
+                setSelectedCategory('')
+                setShowLowStockOnly(false)
+              }}
+              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              <X className="h-3 w-3 mr-1" />
+              Clear Filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -418,9 +476,22 @@ export default function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <Link href={`/inventory/${item.id}`} className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 dark:text-white truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">
-                          {item.name}
-                        </h3>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h3 className="font-medium text-gray-900 dark:text-white truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">
+                            {item.name}
+                          </h3>
+                          {item.category && (
+                            <span
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                              style={{
+                                backgroundColor: item.category.color + '20',
+                                color: item.category.color
+                              }}
+                            >
+                              {item.category.name}
+                            </span>
+                          )}
+                        </div>
                       </Link>
                       <div className="flex items-center space-x-2 ml-2">
                         {item.quantity <= item.lowStockThreshold && (

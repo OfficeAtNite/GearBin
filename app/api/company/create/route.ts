@@ -34,21 +34,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const body = await request.json()
+    const validatedData = createCompanySchema.parse(body)
+
     // Check if user already has a company
     const existingUser = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: { company: true }
     })
 
-    if (existingUser?.companyId) {
+    // If creating a child company, user must be admin of parent company
+    if (validatedData.parentCompanyId && validatedData.organizationType !== 'PARENT') {
+      if (!existingUser?.companyId || existingUser.role !== 'ADMIN') {
+        return NextResponse.json(
+          { error: 'Only company admins can create child organizations' },
+          { status: 403 }
+        )
+      }
+      
+      // Verify the parent company exists and user belongs to it
+      if (existingUser.companyId !== validatedData.parentCompanyId) {
+        return NextResponse.json(
+          { error: 'You can only create child organizations for your own company' },
+          { status: 403 }
+        )
+      }
+    } else if (existingUser?.companyId) {
+      // For parent companies, user should not already belong to a company
       return NextResponse.json(
         { error: 'User already belongs to a company' },
         { status: 400 }
       )
     }
-
-    const body = await request.json()
-    const validatedData = createCompanySchema.parse(body)
 
     // Generate unique join code
     let joinCode: string
@@ -69,6 +86,10 @@ export async function POST(request: NextRequest) {
         data: {
           name: validatedData.name,
           joinCode: joinCode!,
+          organizationType: validatedData.organizationType,
+          parentCompanyId: validatedData.parentCompanyId,
+          location: validatedData.location,
+          description: validatedData.description,
         }
       })
 

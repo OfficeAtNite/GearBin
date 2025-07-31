@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         companyId: session.user.companyId
       },
       include: {
+        category: true,
         tags: {
           include: {
             tag: true
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
         notes: item.notes,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
+        category: item.category,
         tags: item.tags.map(t => t.tag)
       }))
     })
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, quantity, lowStockThreshold, image, notes, tags } = body
+    const { name, description, quantity, lowStockThreshold, image, notes, tags, categoryId } = body
 
     // Validate required fields
     if (!name?.trim()) {
@@ -88,6 +90,7 @@ export async function POST(request: NextRequest) {
         image: image || null,
         notes: notes?.trim() || null,
         companyId: session.user.companyId,
+        categoryId: categoryId || null,
       }
     })
 

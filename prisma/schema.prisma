@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -51,6 +51,7 @@ model Company {
   // Relationships
   users            User[]
   items            InventoryItem[]
+  categories       Category[]
   auditLogs        AuditLog[]
   
   // Organizational hierarchy
@@ -82,18 +83,53 @@ model InventoryItem {
   description     String?
   quantity        Int      @default(0)
   lowStockThreshold Int    @default(10)
-  image           String?
+  image           String?  // Keep for backward compatibility
   notes           String?
   companyId       String
+  categoryId      String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   company         Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category        Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   tags            ItemTag[]
   auditLogs       AuditLog[]
+  images          ItemImage[]
   
   @@index([companyId])
+  @@index([categoryId])
   @@index([name])
+}
+
+model ItemImage {
+  id        String @id @default(cuid())
+  itemId    String
+  imageUrl  String
+  fileName  String?
+  fileSize  Int?
+  mimeType  String?
+  isPrimary Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6b7280")
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items       InventoryItem[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
 }
 
 model Tag {

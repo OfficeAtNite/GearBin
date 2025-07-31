@@ -12,12 +12,21 @@ interface Tag {
   color: string
 }
 
+interface Category {
+  id: string
+  name: string
+  description?: string
+  color: string
+  itemCount?: number
+}
+
 export default function AddInventoryPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
 
   useEffect(() => {
     fetchTags()
+    fetchCategories()
   }, [])
 
   useEffect(() => {
@@ -42,6 +51,18 @@ export default function AddInventoryPage() {
       }
     } catch (error) {
       console.error('Failed to fetch tags:', error)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories')
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableCategories(data.categories)
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
     }
   }
 
@@ -84,6 +105,7 @@ export default function AddInventoryPage() {
     quantity: '',
     lowStockThreshold: '10',
     notes: '',
+    categoryId: '',
   })
   const [image, setImage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -92,8 +114,9 @@ export default function AddInventoryPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [newTagName, setNewTagName] = useState('')
   const [showAddTag, setShowAddTag] = useState(false)
+  const [availableCategories, setAvailableCategories] = useState<Category[]>([])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
   }
@@ -134,6 +157,7 @@ export default function AddInventoryPage() {
           lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
           image,
           tags: selectedTags,
+          categoryId: formData.categoryId || undefined,
         }),
       })
 
@@ -266,6 +290,33 @@ export default function AddInventoryPage() {
                 onChange={handleInputChange}
                 disabled={isLoading}
               />
+            </div>
+
+            {/* Category Selection */}
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Category (Optional)
+              </label>
+              <select
+                id="category"
+                name="categoryId"
+                className="input-field mt-1"
+                value={formData.categoryId}
+                onChange={handleInputChange}
+                disabled={isLoading}
+              >
+                <option value="">Select a category</option>
+                {availableCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+              {availableCategories.length === 0 && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  No categories available. Categories can be created in the admin panel.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
