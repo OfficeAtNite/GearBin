@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Search, Filter, MoreVertical, Package, AlertTriangle, QrCode, Download, Upload, Moon, Sun, Shield, LogOut, Building2, X, Eye } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
+import { CompanySwitcher } from '@/components/ui/company-switcher'
 
 interface InventoryItem {
   id: string
@@ -273,6 +274,9 @@ export default function DashboardPage() {
             </div>
             
             <div className="flex items-center space-x-2">
+              {/* Company Switcher */}
+              <CompanySwitcher />
+              
               {/* Theme Toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

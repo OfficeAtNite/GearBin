@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Plus, Copy, Check, Users, Shield, Trash2, Mail, UserPlus, Building, GitBranch, MapPin, Briefcase, Home, Tag, Edit2, Palette } from 'lucide-react'
 import Link from 'next/link'
+import { CompanySwitcher } from '@/components/ui/company-switcher'
 
 interface CompanyUser {
   id: string
@@ -398,16 +399,26 @@ export default function AdminPage() {
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="px-4 py-4">
-          <div className="flex items-center space-x-3">
-            <Link
-              href="/dashboard"
-              className="p-2 -ml-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Company Admin
-            </h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Link
+                href="/dashboard"
+                className="p-2 -ml-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Company Admin
+              </h1>
+            </div>
+            
+            {/* Company Switcher */}
+            <CompanySwitcher onCompanySwitch={() => {
+              // Refresh the admin data when company switches
+              fetchCompanyData()
+              fetchOrganizationTree()
+              fetchCategories()
+            }} />
           </div>
         </div>
       </header>
