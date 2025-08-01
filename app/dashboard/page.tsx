@@ -32,7 +32,7 @@ interface Category {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession()
+  const { data: session, update } = useSession()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [items, setItems] = useState<InventoryItem[]>([])
@@ -283,6 +283,9 @@ export default function DashboardPage() {
 
       if (response.ok) {
         setShowSwitchCompanyModal(false)
+        // Update the session to reflect the company change
+        await update()
+        // Reload the page to refresh all data
         if (typeof window !== 'undefined') {
           window.location.reload()
         }
