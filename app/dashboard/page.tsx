@@ -47,7 +47,9 @@ export default function DashboardPage() {
   const [showSwitchCompanyModal, setShowSwitchCompanyModal] = useState(false)
   const [joinCode, setJoinCode] = useState('')
   const [newCompanyName, setNewCompanyName] = useState('')
-  const [companyMode, setCompanyMode] = useState<'join' | 'create'>('join')
+  const [companyMode, setCompanyMode] = useState<'switch' | 'join' | 'create'>('switch')
+  const [availableCompanies, setAvailableCompanies] = useState<any[]>([])
+  const [loadingCompanies, setLoadingCompanies] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -254,6 +256,46 @@ export default function DashboardPage() {
     }
   }
 
+  const fetchAvailableCompanies = async () => {
+    if (loadingCompanies) return
+    
+    setLoadingCompanies(true)
+    try {
+      const response = await fetch('/api/user/companies')
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableCompanies(data.companies || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch available companies:', error)
+    } finally {
+      setLoadingCompanies(false)
+    }
+  }
+
+  const handleDirectCompanySwitch = async (joinCode: string) => {
+    try {
+      const response = await fetch('/api/company/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ joinCode })
+      })
+
+      if (response.ok) {
+        setShowSwitchCompanyModal(false)
+        if (typeof window !== 'undefined') {
+          window.location.reload()
+        }
+      } else {
+        const error = await response.json()
+        alert(error.message || 'Failed to switch company')
+      }
+    } catch (error) {
+      console.error('Direct switch error:', error)
+      alert('Failed to switch company')
+    }
+  }
+
   if (!session?.user?.companyId) {
     return null
   }
@@ -319,6 +361,7 @@ export default function DashboardPage() {
                         onClick={() => {
                           setShowMenu(false)
                           setShowSwitchCompanyModal(true)
+                          fetchAvailableCompanies()
                         }}
                         className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md flex items-center space-x-2 mt-1"
                       >
@@ -625,7 +668,17 @@ export default function DashboardPage() {
             
             <div className="space-y-4">
               {/* Mode Selection */}
-              <div className="flex space-x-2">
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => setCompanyMode('switch')}
+                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    companyMode === 'switch'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  Switch Existing
+                </button>
                 <button
                   onClick={() => setCompanyMode('join')}
                   className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -634,7 +687,7 @@ export default function DashboardPage() {
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
-                  Join Company
+                  Join New
                 </button>
                 <button
                   onClick={() => setCompanyMode('create')}
@@ -648,7 +701,63 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {companyMode === 'join' ? (
+              {companyMode === 'switch' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Available Organizations
+                  </label>
+                  {loadingCompanies ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                    </div>
+                  ) : availableCompanies.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                      {availableCompanies.map((company) => (
+                        <div
+                          key={company.id}
+                          className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                            company.isCurrent
+                              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                          }`}
+                          onClick={() => !company.isCurrent && handleDirectCompanySwitch(company.joinCode)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                {company.name}
+                                {company.isCurrent && (
+                                  <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                                    Current
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                {company.organizationType.toLowerCase().replace('_', ' ')}
+                                {company.location && ` • ${company.location}`}
+                              </div>
+                              {company.parentCompanyId && (
+                                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                  ↳ Child organization
+                                </div>
+                              )}
+                            </div>
+                            {!company.isCurrent && (
+                              <div className="text-xs text-gray-400">
+                                Click to switch
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                      No other companies found. Use "Join New" to enter a join code.
+                    </div>
+                  )}
+                </div>
+              ) : companyMode === 'join' ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Company Join Code
@@ -687,7 +796,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => {
                     setShowSwitchCompanyModal(false)
-                    setCompanyMode('join')
+                    setCompanyMode('switch')
                     setJoinCode('')
                     setNewCompanyName('')
                   }}
@@ -695,13 +804,15 @@ export default function DashboardPage() {
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleSwitchCompany}
-                  disabled={companyMode === 'join' ? !joinCode.trim() : !newCompanyName.trim()}
-                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {companyMode === 'join' ? 'Switch Company' : 'Create & Switch'}
-                </button>
+                {companyMode !== 'switch' && (
+                  <button
+                    onClick={handleSwitchCompany}
+                    disabled={companyMode === 'join' ? !joinCode.trim() : !newCompanyName.trim()}
+                    className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {companyMode === 'join' ? 'Switch Company' : 'Create & Switch'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
